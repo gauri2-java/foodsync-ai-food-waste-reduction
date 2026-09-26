@@ -1,31 +1,40 @@
 {
   "name": "foodsync-ai-food-waste-reduction",
-  "version": "3.0.0",
-  "description": "Smart India Hackathon 2026 (SIH26234): AIoT Food Waste Reduction & Sustainable Redistribution with Local Ollama AI, JWT Auth & Leaflet Maps",
+  "version": "4.0.0",
+  "description": "FoodSync — AI-powered food waste reduction & redistribution platform for institutional kitchens and food processing units (SIH26234)",
   "main": "server/server.js",
-  "scripts": {
-    "start": "node server/server.js",
-    "dev": "nodemon server/server.js",
-    "ai:forecast": "python ai-models/forecast_model.py",
-    "ai:vision": "python ai-models/yolov8_freshness_classifier.py",
-    "ai:routing": "python ai-models/route_optimizer_ortools.py"
-  },
   "keywords": [
     "sih2026",
     "foodsync",
-    "ollama-ai",
-    "llama3",
-    "mofpi",
-    "food-waste-reduction",
-    "jwt-auth",
-    "cvrptw",
-    "esg-reporting"
+    "food-waste",
+    "demand-forecasting",
+    "vehicle-routing",
+    "iot",
+    "esg"
   ],
   "author": "Team FoodSync (ID: 144697)",
   "license": "MIT",
   "dependencies": {
-    "express": "^4.19.2",
-    "cors": "^2.8.5",
-    "dotenv": "^16.4.5"
+    "bcryptjs": "^3.0.3",
+    "chart.js": "^4.5.1",
+    "dotenv": "^18.0.4",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "leaflet": "^1.9.4",
+    "multer": "^2.4.0",
+    "pdfkit": "^0.20.2",
+    "pg": "^8.23.0",
+    "pino": "^10.3.1",
+    "qrcode": "^1.5.4",
+    "sharp": "^0.35.4"
+  },
+  "scripts": {
+    "start": "node server/server.js",
+    "dev": "node --watch server/server.js",
+    "db:migrate": "node server/db/migrate.js",
+    "db:seed": "node server/db/seed/index.js",
+    "db:setup": "node server/db/migrate.js && node server/db/seed/index.js",
+    "simulate": "node simulator/simulator.js",
+    "test": "node --test tests/*.test.js"
   }
 }

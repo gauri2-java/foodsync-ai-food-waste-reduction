@@ -1,116 +1,66 @@
-# 🍲 FoodSync: AI-Powered Smart Food Waste Reduction & Sustainable Redistribution Ecosystem
+# FoodSync — Smart Food Waste Management & Redistribution Platform
 
-[![SIH 2026](https://img.shields.io/badge/SIH-2026-orange.svg)](https://sih.gov.in)
-[![MoFPI](https://img.shields.io/badge/Organization-Ministry%20of%20Food%20Processing%20Industries-blue.svg)](https://mofpi.gov.in)
-[![Problem Statement](https://img.shields.io/badge/Problem%20ID-SIH26234-green.svg)](https://sih.gov.in)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+**SIH 2026 · Problem Statement SIH26234 · Ministry of Food Processing Industries**
 
-**Team Name:** FoodSync (Team ID: 144697)  
-**Theme:** Agriculture, FoodTech & Rural Development  
-**Category:** Software / AIoT  
-**Organization:** Ministry of Food Processing Industries (MoFPI)
+FoodSync is an end-to-end platform for institutional kitchens and food processing units. It **predicts demand** so less food is over-cooked, **grades freshness** with images and IoT sensors, **matches surplus** with NGOs, secondary buyers or compost, **routes deliveries** before food spoils, **monitors processing lines** for losses, downtime and energy waste, and **reports impact** (CO₂e, water, land, money) in BRSR/FSSAI-ready form.
 
----
+Everything runs on your local PostgreSQL. All data, thresholds and factors live in the database and are editable in the UI; the analytics are implemented in the codebase and are inspectable — there are no external AI APIs.
 
-## 📌 Executive Summary
+## Quick start
 
-Globally, over **1.3 billion tonnes** of food are discarded annually (accounting for 8–10% of total greenhouse gas emissions). In India, institutional kitchens (hostels, universities, hospitals, corporate canteens) and food processing units suffer from:
-1. **Source-Level Overproduction**: 15–28% excess cooking due to static headcount assumptions.
-2. **Cold-Chain Blind Spots**: No real-time spoilage tracking leading to premature disposal or delayed donations.
-3. **Siloed Redistribution Logistics**: Fragmented communication between donor kitchens, NGOs, and shelters.
+Prerequisites: Node.js 20+ and PostgreSQL 14+ (running locally).
 
-**FoodSync** provides an end-to-end AIoT ecosystem that executes four synchronized stages:
-`Predict Demand (Pre-Cooking)` ➔ `Verify Freshness (Vision + Gas IoT)` ➔ `Route Surplus (Shelf-Life VRP)` ➔ `Report Impact (Automated ESG)`.
-
----
-
-## 🌟 The 4-Stage Core Architecture
-
-```mermaid
-flowchart LR
-    A[Stage 1: Demand Forecasting<br/>Prophet + XGBoost Engine] --> B[Stage 2: Quality Assessment<br/>YOLOv8 CV + MQ-135 Gas Fusion]
-    B --> C[Stage 3: Redistribution<br/>CVRPTW Route Optimizer + QR Seal]
-    C --> D[Stage 4: Impact & ESG<br/>CO2e Avoided & FSSAI / BRSR Reports]
+```bash
+npm install
+cp .env.example .env          # then set DATABASE_URL (your postgres password) and JWT_SECRET
+npm run db:setup              # creates the `foodsync` database, schema and ~7 months of demo history
+npm start                     # http://localhost:5000
+npm run simulate              # (second terminal) live IoT sensors, machine meters and vehicle GPS
 ```
 
-### 1. 🧠 Stage 1: Demand Intelligence & Batch Sizing
-- **Algorithms:** Prophet time-series + XGBoost regression.
-- **Data Ingestion:** POS attendance, academic calendars, festival dates, and real-time weather.
-- **Output:** Raw-material procurement quotas (Rice, Dal, Vegetables, Cooking Oil) to eliminate overproduction before cooking starts.
+Seeded accounts (one per role) use the password in `SEED_PASSWORD` (default `FoodSync@123`); the full list is `admin@`, `kitchen@`, `cafeteria@`, `plant@`, `quality@`, `ngo@`, `hope@`, `stars@`, `buyer@`, `driver1/2/3@`, `auditor@` — all `@foodsync.local`.
 
-### 2. 👁️ Stage 2: Quality Assessment & Safe Consumption Window (SCW)
-- **Multi-Sensor Fusion:** Edge computer vision (YOLOv8) + ambient gas telemetry ($NH_3$ ammonia, $CO_2$, temperature, humidity).
-- **Output:** Verified **Safe Consumption Window (SCW)** in hours. Safe surplus is routed to shelters; degraded batches are diverted to biogas/compost.
+`npm test` runs the unit tests for the analytics engines (no database needed).
 
-### 3. 🚚 Stage 3: Perishability-Aware Dynamic Redistribution
-- **Routing Engine:** Google OR-Tools Capacitated Vehicle Routing Problem with Time Windows (CVRPTW).
-- **Logistics:** Dispatches prioritized by decaying shelf-life windows and live traffic congestion (<45 min transit limit).
-- **Digital Seal:** Dynamic QR code verification with mandatory thermal gate check.
+## How it maps to the problem statement
 
-### 4. 🌱 Stage 4: Automated ESG Analytics & Reporting
-- **Carbon Accounting:** $2.5	ext{ kg } CO_2e$ avoided per kg food diverted.
-- **Compliance:** Instant audit exports formatted for **FSSAI "Save Food Share Food" (2019)**, **SEBI BRSR Core**, and **NAAC Green Campus** metrics.
+| Requirement | Where | How |
+|---|---|---|
+| Predict demand & surplus in real time | Demand & planning | Hybrid forecaster: additive ridge regression (weekday, yearly season, exams/holidays/festivals/vacations, live **Open-Meteo** weather, recent level) + gradient-boosted trees on residuals. Time-ordered holdout MAPE vs a seasonal-naive baseline is shown for every model; retrained daily from new meal logs. |
+| Smart production planning | Demand & planning → production plan | Cook quantity = forecast upper band at a configurable service level; the menu plan × recipes (bill of materials) give raw-material needs, netted against stock **first-expiry-first-out** into a procurement list. |
+| Items nearing expiry / quality deterioration | Inventory, Quality, IoT cold chain | Near-expiry scans; Safe Consumption Window from a Q10 kinetic shelf-life model + FSSAI danger-zone rule (5–60 °C) + MQ-135 NH₃/CO₂ readings + image colour/texture analysis. Inspector labels train a calibrated logistic model. |
+| Connect surplus with NGOs, shelters, buyers | Surplus exchange, Food offers | Channel cascade donation → secondary sale → compost. Recipients are ranked on proximity, capacity, fairness and time slack, with feasibility checks (category, opening hours, reach before the window closes). Offers go to the top N at once; the first to accept wins, and unanswered offers expire and re-match. |
+| AI logistics & route optimisation | Fleet & routes, My trips | Pickup-and-delivery VRP with vehicle capacity and hard deadlines at each food's safe-window end (regret-2 insertion + relocate search), compared against one-trip-per-pickup. Driver app with GPS sharing and QR hand-off. |
+| Processing efficiency & storage conditions | Processing units, IoT cold chain | Yield vs standard, scrap cost, OEE, energy intensity, downtime Pareto, overproduction vs dispatch; sustained cold-chain breach alerts; device-offline detection. |
+| Detect overproduction, losses, downtime, excess energy | Processing units, Alerts | Rule findings + **Isolation Forest** anomaly detection on machine telemetry with a plain-language cause. |
+| Sustainability, carbon, ESG | Sustainability & ESG | Food saved, meals, net CO₂e (landfill + embodied − transport), virtual water, land, money; BRSR Principle-6 indicators; FSSAI surplus-distribution register; one-click PDF. |
+| Tamper-evident records | Audit trail | SHA-256 hash-chained audit log with integrity verification; QR hand-off tokens are HMAC-signed. |
 
----
+## Architecture
 
-## 📊 Proposed Targets & Impact
+```
+client/            Vanilla JS SPA (no build step) · Chart.js · Leaflet · SSE live updates
+server/
+  app.js, server.js
+  middleware/      request logging (timed, leveled JSON), JWT auth, org scoping, errors, uploads
+  modules/<name>/  *.routes → *.controller → *.service (business logic) → *.repository (SQL only)
+  ml/              forecaster, ridge, gbm, isolationForest, vrp, matching, shelfLife, vision, logistic
+  jobs/            surplus housekeeping, expiry scan, cold-chain/offline scan, anomaly scan, daily retrain
+  db/schema.sql    PostgreSQL schema · db/seed/ demo data generator
+simulator/         IoT + GPS simulator (uses the same public device/driver APIs as real hardware)
+hardware/          ESP32 + DHT22 + MQ-135 firmware for a real storage node
+tests/             node:test unit tests for the analytics engines
+```
 
-| Metric | Target |
-|---|---|
-| **Raw Material Wastage Reduction** | **35–50%** lower waste in institutional kitchens within 60 days |
-| **Monthly Procurement Cost Savings** | **18%** lower purchasing costs via ingredient batch optimization |
-| **Greenhouse Gas Emissions Avoidance** | **2.5 kg CO₂e** avoided per kg of edible food diverted |
-| **Forecast Precision & SCW Accuracy** | **>92%** precision; **94.2%** SCW prediction vs lab assays |
+Live updates use Server-Sent Events (`/api/dashboard/stream`). Devices post to `POST /api/iot/ingest` with `x-device-id` and `x-device-key` headers, and only a hash of each key is stored.
 
----
+## Data you can change
 
-## 🛠️ Technology Stack
+- **Administration → Tunable parameters:** routing speed and detour factor, matching weights, offer timeout, gas and danger-zone thresholds, forecast service level, near-expiry window, anomaly threshold, and emission factors.
+- **Administration → Food categories:** shelf life, Q10, and CO₂e, water and land footprint per category.
+- **Meal service log → Calendar:** exams, holidays and events that the forecaster learns from.
+- Sites, organisations (with NGO verification), users, storage units, devices, dishes and recipes, and vehicles.
 
-- **AI & Forecasting:** Python, Prophet, XGBoost, Scikit-learn
-- **Computer Vision & IoT:** YOLOv8, OpenCV, ESP32, MQ-135 ($NH_3$), MQ-4 ($CO_2$), DHT22
-- **Logistics & Routing:** Google OR-Tools (CVRPTW), Leaflet / OpenStreetMap
-- **Full-Stack Application:** Node.js, Express.js REST APIs, Chart.js, QRCode.js, HTML5/CSS3
+## Notes on the demo data
 
----
-
-## 🚀 Getting Started & Local Setup
-
-### Prerequisites
-- Node.js (v18+)
-- Python (3.9+)
-
-### Installation
-
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/gauri2-java/foodsync-ai-food-waste-reduction.git
-   cd foodsync-ai-food-waste-reduction
-   ```
-
-2. **Install Node.js dependencies:**
-   ```bash
-   npm install
-   ```
-
-3. **Start the Full-Stack Server:**
-   ```bash
-   npm start
-   ```
-   Access the dashboard at: `http://localhost:5000`
-
-4. **(Optional) Run AI Inference Simulation Scripts:**
-   ```bash
-   python ai-models/forecast_model.py
-   python ai-models/yolov8_freshness_classifier.py
-   python ai-models/route_optimizer_ortools.py
-   ```
-
----
-
-## 👥 Team FoodSync
-- **Team ID:** 144697
-- **Submission:** Smart India Hackathon 2026 (SIH 2026)
-- **Ministry:** Ministry of Food Processing Industries (MoFPI)
-
-## 📄 License
-This project is licensed under the MIT License.
+`npm run db:seed` generates a fictional city network (3 kitchens, 1 processing plant, 6 NGOs, 2 buyers, a biogas plant and a 3-vehicle fleet) with realistic patterns. Weather history is real (Open-Meteo) when online. Kitchens cook to a static headcount rule until `SEED_GO_LIVE_DAYS` ago and to FoodSync's forecast afterwards, which gives the before/after comparison. Footprint factors are indicative literature values and must be validated before external disclosure.
