@@ -3,11 +3,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>FoodSync | AIoT Smart Food Waste Reduction & Redistribution</title>
+  <title>FoodSync | AIoT Smart Food Waste Reduction & Sustainable Redistribution</title>
   <link rel="stylesheet" href="style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  
+  <!-- Leaflet CSS & JS for Interactive Map -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  
   <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <!-- QRCode.js -->
@@ -36,18 +41,42 @@
           <span class="nav-icon">👁️</span> Stage 2: Vision AI & IoT
         </button>
         <button class="nav-btn" data-tab="redistribution">
-          <span class="nav-icon">🚚</span> Stage 3: Routing & NGOs
+          <span class="nav-icon">🚚</span> Stage 3: Routing & Map
         </button>
         <button class="nav-btn" data-tab="esg">
-          <span class="nav-icon">🌱</span> Stage 4: Impact & ESG
+          <span class="nav-icon">🌱</span> Stage 4: ESG & Audits
         </button>
       </nav>
+
+      <!-- Live IoT Telemetry Ticker -->
+      <div class="telemetry-widget">
+        <div class="telemetry-header">
+          <span>📡 LIVE SENSOR TELEMETRY</span>
+          <span class="pulse-dot"></span>
+        </div>
+        <div class="telemetry-item">
+          <span>Ammonia ($NH_3$):</span>
+          <strong id="liveNh3Val">12.4 ppm</strong>
+        </div>
+        <div class="telemetry-item">
+          <span>CO₂ Concentration:</span>
+          <strong id="liveCo2Val">430 ppm</strong>
+        </div>
+        <div class="telemetry-item">
+          <span>Storage Temp:</span>
+          <strong id="liveTempVal">24.5 °C</strong>
+        </div>
+        <div class="telemetry-item">
+          <span>Humidity:</span>
+          <strong id="liveHumVal">56%</strong>
+        </div>
+      </div>
 
       <div class="sidebar-footer">
         <div class="sih-meta-box">
           <strong>Team FoodSync (144697)</strong>
-          <p>Problem ID: SIH26234</p>
-          <span class="status-indicator">🟢 Edge Nodes Connected</span>
+          <p>Problem ID: SIH26234 (MoFPI)</p>
+          <span class="status-indicator">🟢 AIoT Edge Pipeline Active</span>
         </div>
       </div>
     </aside>
@@ -57,11 +86,11 @@
       <!-- Top Banner -->
       <header class="topbar">
         <div>
-          <h1 id="tabTitle">AIoT Food Waste Reduction & Redistribution Platform</h1>
-          <p class="subtitle">Ministry of Food Processing Industries (MoFPI) • Smart India Hackathon 2026</p>
+          <h1 id="tabTitle">Executive AIoT Command Center</h1>
+          <p class="subtitle">AI-Powered Smart Food Waste Reduction & Sustainable Redistribution Ecosystem (SIH26234)</p>
         </div>
         <div class="topbar-actions">
-          <button id="simulateAllBtn" class="btn btn-primary">⚡ Run Live AI Pipeline</button>
+          <button id="simulateAllBtn" class="btn btn-primary">⚡ Trigger Full AI Pipeline</button>
           <div class="live-clock" id="liveClock">--:--:--</div>
         </div>
       </header>
@@ -72,19 +101,19 @@
         <div class="metrics-grid">
           <div class="card metric-card">
             <div class="metric-header">
-              <span>Food Waste Prevented</span>
+              <span>Overproduction Cut (Pre-Cook)</span>
               <span class="badge badge-green">Stage 1</span>
             </div>
             <h2>18.4%</h2>
-            <p class="metric-sub">Overproduction cut pre-cooking</p>
+            <p class="metric-sub">Prophet + XGBoost batch sizing</p>
           </div>
           <div class="card metric-card">
             <div class="metric-header">
-              <span>Safe Surplus Diverted</span>
+              <span>Surplus Food Diverted</span>
               <span class="badge badge-blue">Stage 2 & 3</span>
             </div>
             <h2 id="heroKgDiverted">1,450 kg</h2>
-            <p class="metric-sub">3,625 nutritious meals served</p>
+            <p class="metric-sub">3,625 meals served to shelters</p>
           </div>
           <div class="card metric-card">
             <div class="metric-header">
@@ -96,51 +125,51 @@
           </div>
           <div class="card metric-card">
             <div class="metric-header">
-              <span>Kitchen Procurement Savings</span>
+              <span>Procurement Savings</span>
               <span class="badge badge-amber">Economic</span>
             </div>
             <h2>₹55,825</h2>
-            <p class="metric-sub">Optimized ingredient batching</p>
+            <p class="metric-sub">Raw-material cost reduction</p>
           </div>
         </div>
 
-        <!-- 4-Stage Workflow Architecture Cards -->
+        <!-- 4-Stage Synchronized Pipeline Graphic -->
         <div class="workflow-banner">
           <div class="workflow-step">
             <div class="step-num">1</div>
             <h4>Demand Forecasting</h4>
-            <p>Prophet + XGBoost models set raw material batch quotas.</p>
+            <p>Prophet + XGBoost sizes raw-material batch quotas.</p>
           </div>
-          <div class="workflow-arrow">→</div>
+          <div class="workflow-arrow">➔</div>
           <div class="workflow-step">
             <div class="step-num">2</div>
             <h4>Quality Assessment</h4>
-            <p>YOLOv8 Edge CV & Multi-Gas sensors give verified Safe Window.</p>
+            <p>YOLOv8 Edge CV & Multi-Gas sensors calculate Safe Window (SCW).</p>
           </div>
-          <div class="workflow-arrow">→</div>
+          <div class="workflow-arrow">➔</div>
           <div class="workflow-step">
             <div class="step-num">3</div>
             <h4>Redistribution VRP</h4>
             <p>Shelf-life aware routing matches verified geofenced NGOs.</p>
           </div>
-          <div class="workflow-arrow">→</div>
+          <div class="workflow-arrow">➔</div>
           <div class="workflow-step">
             <div class="step-num">4</div>
             <h4>Audit & ESG Reports</h4>
-            <p>Automated FSSAI & SEBI BRSR compliance carbon metrics.</p>
+            <p>FSSAI & SEBI BRSR compliance carbon metrics.</p>
           </div>
         </div>
 
         <!-- Charts Row -->
         <div class="charts-row">
           <div class="card chart-card">
-            <h3>7-Day Overproduction vs Demand Accuracy</h3>
+            <h3>📈 7-Day Overproduction Prevention vs Actual Consumption</h3>
             <div class="chart-wrap">
               <canvas id="overviewDemandChart"></canvas>
             </div>
           </div>
           <div class="card chart-card">
-            <h3>Surplus Redistribution Status</h3>
+            <h3>🎯 Surplus Distribution Channel Allocation</h3>
             <div class="chart-wrap">
               <canvas id="overviewSurplusDoughnut"></canvas>
             </div>
@@ -152,12 +181,12 @@
       <section class="tab-pane" id="pane-forecasting">
         <div class="split-view">
           <div class="card form-card">
-            <h3>🧠 Multi-Modal Demand Intelligence Engine</h3>
-            <p class="form-desc">Simulate Prophet + XGBoost inputs to prevent static overcooking at the source.</p>
+            <h3>🧠 Multi-Modal Demand Forecasting Engine</h3>
+            <p class="form-desc">Ingests POS attendance, weather, academic exam schedules, and holiday calendars to eliminate overcooking at the pre-cooking source.</p>
 
             <form id="forecastSimForm">
               <div class="form-group">
-                <label>Base Registered Student / Worker Headcount</label>
+                <label>Base Registered Student / Staff Headcount</label>
                 <input type="number" id="fcHeadcount" value="850" min="100" max="5000">
               </div>
 
@@ -175,9 +204,10 @@
                 <div class="form-group">
                   <label>Weather Condition</label>
                   <select id="fcWeather">
-                    <option value="Sunny" selected>☀️ Sunny & Clear</option>
-                    <option value="Rainy">🌧️ Heavy Monsoon Rain</option>
-                    <option value="Cold / Winter">❄️ Cold Winter Day</option>
+                    <option value="Sunny" selected>☀️ Sunny & Clear (Normal)</option>
+                    <option value="Rainy">🌧️ Heavy Monsoon Rain (-8%)</option>
+                    <option value="Cold / Winter">❄️ Cold Winter Day (+4%)</option>
+                    <option value="Extreme Heat">🔥 Extreme Heat Wave (-6%)</option>
                   </select>
                 </div>
               </div>
@@ -185,48 +215,53 @@
               <div class="form-row">
                 <label class="checkbox-box">
                   <input type="checkbox" id="fcExam">
-                  <span>Exam Week (Higher Mess Footfall)</span>
+                  <span>Exam Week (+14% Mess Footfall)</span>
                 </label>
                 <label class="checkbox-box">
                   <input type="checkbox" id="fcFestival">
-                  <span>Upcoming Long Weekend / Festival</span>
+                  <span>Upcoming Long Weekend (-22%)</span>
                 </label>
               </div>
 
-              <button type="submit" class="btn btn-primary" style="width:100%;margin-top:1rem;">Generate Optimized Batch Quotas</button>
+              <button type="submit" class="btn btn-primary" style="width:100%;margin-top:1rem;">⚡ Compute AI Batch Quotas (Prophet + XGBoost)</button>
             </form>
           </div>
 
           <div class="card result-card" id="forecastOutputCard">
-            <h3>Forecast Yield & Ingredient Sizing</h3>
+            <h3>Dynamic Yield & Raw Material Sizing</h3>
             <div class="prediction-hero">
               <div class="pred-item">
-                <span>Predicted Meal Demand</span>
+                <span>AI Predicted Meals</span>
                 <strong id="resPredMeals">892 Meals</strong>
               </div>
               <div class="pred-item">
                 <span>Legacy Static Estimate</span>
-                <strong id="resLegacyMeals" style="color:#f87171;">978 Meals</strong>
+                <strong id="resLegacyMeals" style="color:#f87171;">1,003 Meals</strong>
               </div>
               <div class="pred-item">
                 <span>Prevented Overproduction</span>
-                <strong id="resSavedMeals" style="color:#34d399;">86 Meals (8.8%)</strong>
+                <strong id="resSavedMeals" style="color:#34d399;">111 Meals (11.1%)</strong>
               </div>
             </div>
 
             <div class="raw-materials-table">
-              <h4>Optimal Raw Material Batch Quotas</h4>
+              <h4>Optimal Raw Material Batch Quotas (Zero Source Waste)</h4>
               <div class="material-grid">
                 <div class="mat-pill">🌾 Rice: <strong id="resRice">107.0 kg</strong></div>
                 <div class="mat-pill">🥣 Dal / Pulses: <strong id="resDal">53.5 kg</strong></div>
-                <div class="mat-pill">🥦 Vegetables: <strong id="resVeg">133.8 kg</strong></div>
-                <div class="mat-pill">🛢️ Cooking Oil: <strong id="resOil">17.8 L</strong></div>
+                <div class="mat-pill">🥦 Vegetables: <strong id="resVeg">142.7 kg</strong></div>
+                <div class="mat-pill">🛢️ Cooking Oil: <strong id="resOil">19.6 L</strong></div>
+                <div class="mat-pill">🔥 LPG Fuel: <strong id="resLpg">13.4 kg</strong></div>
+                <div class="mat-pill">🧂 Seasoning: <strong id="resSpices">7.1 kg</strong></div>
               </div>
             </div>
 
             <div class="cost-savings-callout">
-              <span>💰 Estimated Procurement Cost Saved:</span>
-              <strong id="resCostSaved">₹3,311 INR this meal service</strong>
+              <div>
+                <span>💰 Estimated Procurement Savings:</span>
+                <small style="display:block;color:#94a3b8;">Prevented ingredient spoil & haulage</small>
+              </div>
+              <strong id="resCostSaved">₹4,662 INR this meal service</strong>
             </div>
           </div>
         </div>
@@ -238,32 +273,43 @@
           <!-- Vision & Sensor Simulator -->
           <div class="card">
             <h3>👁️ Edge Computer Vision & Gas Sensor Fusion</h3>
-            <p class="form-desc">Simulate YOLOv8 freshness inspection and MQ-135/MQ-4 ambient sensor telemetry.</p>
+            <p class="form-desc">Fuses YOLOv8 visual classification with MQ-135 (ammonia), MQ-4 (CO2), and thermal sensor streams.</p>
 
-            <div class="cv-camera-mock">
+            <div class="food-selector-row">
+              <label>Select Sample Food Dish:</label>
+              <select id="sampleFoodSelect">
+                <option value="Steamed Basmati Rice & Dal">Steamed Basmati Rice & Dal (Hot Holding)</option>
+                <option value="Mixed Vegetable Curry & Rotis">Mixed Vegetable Curry & Rotis</option>
+                <option value="Paneer Butter Masala">Paneer Butter Masala</option>
+                <option value="Fresh Cut Fruit Salad">Fresh Cut Fruit Salad (Cold Chain)</option>
+                <option value="Overnight Stale Rice (Spoiled Sample)">Overnight Stale Rice (Spoilage Test Sample)</option>
+              </select>
+            </div>
+
+            <div class="cv-camera-mock" id="cvViewport">
               <div class="camera-lens-overlay">
-                <div class="bounding-box-mock">
-                  <span class="bb-label">YOLOv8: Steamed Rice & Dal (96.5%)</span>
+                <div class="bounding-box-mock" id="yoloBox">
+                  <span class="bb-label" id="yoloLabel">YOLOv8: Steamed Rice & Dal (97.4%)</span>
                 </div>
                 <div class="camera-crosshairs">+</div>
               </div>
-              <div class="camera-status">🔴 LIVE EDGE SENSOR STREAM</div>
+              <div class="camera-status">🔴 SENSOR & VISION FUSION ACTIVE</div>
             </div>
 
             <div class="sensor-controls">
               <div class="sensor-slider">
-                <label>Ammonia Gas Concentration ($NH_3$): <span id="valNh3">14 ppm</span></label>
+                <label>Ammonia Gas ($NH_3$): <span id="valNh3">14 ppm</span></label>
                 <input type="range" id="sliderNh3" min="5" max="60" value="14">
               </div>
               <div class="sensor-slider">
                 <label>Storage Temperature: <span id="valTemp">25.0 °C</span></label>
-                <input type="range" id="sliderTemp" min="15" max="45" value="25">
+                <input type="range" id="sliderTemp" min="10" max="50" value="25">
               </div>
               <div class="sensor-slider">
                 <label>Hours Since Cooked: <span id="valHours">2.5 hrs</span></label>
-                <input type="range" id="sliderHours" min="0.5" max="12" step="0.5" value="2.5">
+                <input type="range" id="sliderHours" min="0.5" max="14" step="0.5" value="2.5">
               </div>
-              <button id="runQualityCheckBtn" class="btn btn-primary" style="width:100%;margin-top:1rem;">Evaluate Safe Consumption Window</button>
+              <button id="runQualityCheckBtn" class="btn btn-primary" style="width:100%;margin-top:0.75rem;">🔍 Compute Safe Consumption Window (SCW)</button>
             </div>
           </div>
 
@@ -271,7 +317,7 @@
           <div class="card">
             <h3>Safe Consumption Window (SCW) & Freshness Grade</h3>
             <div class="scw-card">
-              <div class="scw-circle">
+              <div class="scw-circle" id="scwCircle">
                 <span id="scwHoursDisplay">5.2</span>
                 <small>Hours Remaining</small>
               </div>
@@ -284,41 +330,46 @@
             <div class="log-surplus-box">
               <h4>Log Surplus Batch for NGO Redistribution</h4>
               <div class="form-group">
-                <label>Food Item</label>
+                <label>Food Item Description</label>
                 <input type="text" id="logFoodName" value="Steamed Basmati Rice & Dal">
               </div>
               <div class="form-row">
                 <div class="form-group">
-                  <label>Quantity (kg)</label>
-                  <input type="number" id="logQuantity" value="25" min="1">
+                  <label>Surplus Quantity (kg)</label>
+                  <input type="number" id="logQuantity" value="35" min="1">
                 </div>
                 <div class="form-group">
-                  <label>Service Slot</label>
+                  <label>Current Service Window</label>
                   <select id="logMealSlot">
-                    <option>Lunch Service</option>
-                    <option>Dinner Service</option>
+                    <option>Lunch Service (12:30 PM - 02:30 PM)</option>
+                    <option>Dinner Service (07:30 PM - 09:30 PM)</option>
                   </select>
                 </div>
               </div>
-              <button id="dispatchSurplusBtn" class="btn btn-success" style="width:100%;">🚀 Dispatch to Redistribution Engine</button>
+              <button id="dispatchSurplusBtn" class="btn btn-success" style="width:100%;">🚀 Dispatch Batch to Redistribution Engine</button>
             </div>
           </div>
         </div>
       </section>
 
-      <!-- TAB 4: STAGE 3 - REDISTRIBUTION & ROUTING -->
+      <!-- TAB 4: STAGE 3 - REDISTRIBUTION & MAP -->
       <section class="tab-pane" id="pane-redistribution">
-        <div class="split-view">
-          <!-- Active Routes Table -->
-          <div class="card" style="flex:1.4;">
-            <div class="card-header">
-              <div>
-                <h3>🚚 Perishability-Aware Routing Engine (CVRPTW)</h3>
-                <p class="form-desc">Dispatches matched to decaying shelf-life windows and live traffic.</p>
-              </div>
-              <button id="refreshRoutesBtn" class="btn btn-outline">🔄 Re-Optimize Routes</button>
+        <!-- Interactive Leaflet Route Map -->
+        <div class="card map-card">
+          <div class="card-header">
+            <div>
+              <h3>🗺️ Live Perishability-Aware Fleet Routing & Geofenced Shelters</h3>
+              <p class="form-desc">Google OR-Tools CVRPTW solver matches donor kitchens to nearby shelters prioritising decaying Safe Consumption Windows.</p>
             </div>
+            <button id="refreshRoutesBtn" class="btn btn-outline">🔄 Re-Optimize Route Vectors</button>
+          </div>
+          <div id="fleetMap" class="leaflet-map-container"></div>
+        </div>
 
+        <div class="split-view" style="margin-top:1.5rem;">
+          <!-- Active Dispatches Table -->
+          <div class="card" style="flex:1.4;">
+            <h3>Active Dispatches & Transit Status</h3>
             <div class="table-container">
               <table class="data-table">
                 <thead>
@@ -326,8 +377,8 @@
                     <th>Dispatch ID</th>
                     <th>Recipient NGO / Shelter</th>
                     <th>Distance & ETA</th>
-                    <th>Priority</th>
-                    <th>QR Verify</th>
+                    <th>Priority & SCW</th>
+                    <th>Action</th>
                   </tr>
                 </thead>
                 <tbody id="routesTableBody"></tbody>
@@ -337,8 +388,8 @@
 
           <!-- Dynamic QR Handoff Verification -->
           <div class="card" style="flex:0.8;">
-            <h3>Dynamic QR Handoff Gate</h3>
-            <p class="form-desc">Timestamped, tamper-evident digital seal for food safety handoff.</p>
+            <h3>Dynamic QR Verification Gate</h3>
+            <p class="form-desc">Cryptographic digital seal for tamper-evident, timestamped handoff verification.</p>
             
             <div class="qr-box">
               <div id="qrcodeContainer"></div>
@@ -346,9 +397,9 @@
             </div>
 
             <div class="thermal-gate-box">
-              <label>Mandatory Thermal Sensor Check (°C):</label>
+              <label>Mandatory Thermal Sensor Gate Check (°C):</label>
               <input type="number" id="thermalCheckInput" value="64.5" step="0.5">
-              <button id="verifyHandoffBtn" class="btn btn-primary" style="width:100%;margin-top:0.75rem;">Verify Beneficiary Handoff</button>
+              <button id="verifyHandoffBtn" class="btn btn-primary" style="width:100%;margin-top:0.75rem;">✅ Verify Beneficiary Handoff</button>
             </div>
           </div>
         </div>
@@ -359,9 +410,9 @@
         <div class="esg-hero-card">
           <div>
             <h2>🌱 Institutional ESG & Sustainability Scorecard</h2>
-            <p>Aligned with FSSAI 'Save Food Share Food' and SEBI BRSR Core Disclosures.</p>
+            <p>Compliant with FSSAI 'Save Food Share Food' (2019) & SEBI BRSR Core Principles.</p>
           </div>
-          <button id="downloadEsgReportBtn" class="btn btn-primary">📄 Download Audit-Ready ESG PDF / JSON</button>
+          <button id="downloadEsgReportBtn" class="btn btn-primary">📄 Download Audit-Ready ESG JSON / Certificate</button>
         </div>
 
         <div class="esg-grid">
@@ -369,13 +420,13 @@
             <span class="icon">🥗</span>
             <h3>Total Food Diverted</h3>
             <strong id="esgKgVal">1,450 kg</strong>
-            <p>Equivalent to 3,625 balanced meals</p>
+            <p>3,625 balanced meals provided</p>
           </div>
           <div class="card esg-metric">
             <span class="icon">☁️</span>
             <h3>GHG (CO₂e) Avoided</h3>
             <strong id="esgCo2Val">3,625 kg CO₂e</strong>
-            <p>3.625 Metric Tonnes greenhouse gas</p>
+            <p>3.625 Metric Tonnes CO₂ equivalent</p>
           </div>
           <div class="card esg-metric">
             <span class="icon">💧</span>
@@ -387,17 +438,17 @@
             <span class="icon">🏞️</span>
             <h3>Arable Land Preserved</h3>
             <strong id="esgLandVal">2,610 m²</strong>
-            <p>Land surface footprint saved</p>
+            <p>Land degradation footprint avoided</p>
           </div>
         </div>
 
         <div class="card compliance-card">
           <h3>Regulatory Framework Compliance Checklist</h3>
           <div class="checklist">
-            <div class="check-item">✅ <strong>FSSAI Save Food Share Food (2019):</strong> Temperature threshold & hygienic transport certified.</div>
-            <div class="check-item">✅ <strong>SEBI BRSR Principle 6 (Environment):</strong> Scope 3 waste emissions tracked in kg CO₂e.</div>
-            <div class="check-item">✅ <strong>UN SDG 12.3:</strong> Institutional food loss reduction benchmark achieved (&gt;35%).</div>
-            <div class="check-item">✅ <strong>NAAC Green Campus Audit:</strong> Verifiable digital waste diversion records ready.</div>
+            <div class="check-item">✅ <strong>FSSAI Save Food Share Food (2019):</strong> Mandatory thermal gate (&ge;60°C hot holding) & hygienic cold-chain transport certified.</div>
+            <div class="check-item">✅ <strong>SEBI BRSR Principle 6 (Environment):</strong> Scope 3 waste emissions tracked in kg CO₂e for institutional audit disclosures.</div>
+            <div class="check-item">✅ <strong>UN SDG 12.3:</strong> Institutional food loss reduction benchmark achieved (&gt;35% waste cut within 60 days).</div>
+            <div class="check-item">✅ <strong>NAAC Green Campus Audit Criteria 7.1:</strong> 100% digital, timestamped, tamper-evident food redistribution records.</div>
           </div>
         </div>
       </section>

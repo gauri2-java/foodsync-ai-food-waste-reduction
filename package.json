@@ -1,11 +1,11 @@
 {
   "name": "foodsync-ai-food-waste-reduction",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Smart India Hackathon 2026 (SIH26234): AI-Powered Food Waste Reduction & Sustainable Redistribution Ecosystem for Institutional Kitchens and MoFPI",
   "main": "server/server.js",
   "scripts": {
     "start": "node server/server.js",
-    "server": "nodemon server/server.js",
+    "dev": "nodemon server/server.js",
     "ai:forecast": "python ai-models/forecast_model.py",
     "ai:vision": "python ai-models/yolov8_freshness_classifier.py",
     "ai:routing": "python ai-models/route_optimizer_ortools.py"
@@ -19,9 +19,11 @@
     "yolov8-vision-ai",
     "cvrptw-routing",
     "esg-reporting",
-    "iot-sensors"
+    "iot-sensors",
+    "leaflet-maps",
+    "fssai"
   ],
-  "author": "FoodSync Team (SIH 2026)",
+  "author": "Team FoodSync (Team ID: 144697)",
   "license": "MIT",
   "dependencies": {
     "express": "^4.19.2",

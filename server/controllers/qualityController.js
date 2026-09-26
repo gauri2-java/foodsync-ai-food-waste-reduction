@@ -1,14 +1,13 @@
 const engine = require('../services/cvFreshnessEngine');
 
 let surplusLog = [
-  { id: '1', foodItem: 'Steamed Basmati Rice & Dal', quantityKg: 35, cookedAt: new Date(Date.now() - 2.5 * 3600000).toISOString(), freshness: 92, scwHours: 5.2, status: 'Safe for Donation' },
-  { id: '2', foodItem: 'Mixed Vegetable Curry', quantityKg: 22, cookedAt: new Date(Date.now() - 3.2 * 3600000).toISOString(), freshness: 84, scwHours: 4.0, status: 'Safe for Donation' },
-  { id: '3', foodItem: 'Paneer Butter Masala', quantityKg: 18, cookedAt: new Date(Date.now() - 1.8 * 3600000).toISOString(), freshness: 95, scwHours: 6.5, status: 'Safe for Donation' }
+  { id: 'SURP-201', foodItem: 'Steamed Basmati Rice & Dal', quantityKg: 35, cookedAt: '2.5 hrs ago', freshness: 92, scwHours: 5.2, status: 'Dispatched to Asha Shelter' },
+  { id: 'SURP-202', foodItem: 'Mixed Vegetable Curry & Rotis', quantityKg: 24, cookedAt: '3.0 hrs ago', freshness: 86, scwHours: 4.4, status: 'Dispatched to Prerna Foundation' },
+  { id: 'SURP-203', foodItem: 'Paneer Butter Masala', quantityKg: 18, cookedAt: '1.5 hrs ago', freshness: 95, scwHours: 6.2, status: 'Delivered to Sneha Kitchen' }
 ];
 
 exports.assessFreshness = (req, res) => {
-  const { foodItem = 'Dal Tadka & Rice', cookingTimestamp = new Date(Date.now() - 2 * 3600000).toISOString(), ammoniaPpm = 14.2, co2Ppm = 450, ambientTempC = 25.0, storageHumidity = 55 } = req.body;
-  const result = engine.evaluateFreshness({ foodItem, cookingTimestamp, ammoniaPpm, co2Ppm, ambientTempC, storageHumidity });
+  const result = engine.evaluateFreshness(req.body || {});
   res.json({ success: true, data: result });
 };
 
@@ -17,16 +16,16 @@ exports.getSurplusLog = (req, res) => {
 };
 
 exports.logSurplus = (req, res) => {
-  const { foodItem, quantityKg, cookedAt, freshness, scwHours } = req.body;
-  const newEntry = {
-    id: Date.now().toString(),
+  const { foodItem, quantityKg, freshness, scwHours } = req.body;
+  const entry = {
+    id: `SURP-${Date.now().toString().slice(-4)}`,
     foodItem: foodItem || 'Prepared Meal Batch',
-    quantityKg: parseFloat(quantityKg) || 15,
-    cookedAt: cookedAt || new Date().toISOString(),
+    quantityKg: parseFloat(quantityKg) || 20,
+    cookedAt: 'Just Now',
     freshness: freshness || 90,
     scwHours: scwHours || 4.5,
-    status: 'Safe for Donation'
+    status: 'Matched to Nearest Geofenced NGO'
   };
-  surplusLog.unshift(newEntry);
-  res.status(201).json({ success: true, message: 'Surplus food batch recorded with SCW validation', data: newEntry });
+  surplusLog.unshift(entry);
+  res.status(201).json({ success: true, message: 'Surplus batch logged into redistribution pipeline', data: entry });
 };
