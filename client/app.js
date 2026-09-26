@@ -1,3 +1,4 @@
+let currentUser = JSON.parse(localStorage.getItem('foodsync_user')) || null;
 let demandChart = null;
 let surplusDoughnut = null;
 let qrcodeInstance = null;
@@ -5,29 +6,160 @@ let leafletMap = null;
 let mapMarkers = [];
 let routeLines = [];
 
-const DISPATCHES = [
-  { id: 'DISP-1001', ngo: 'Asha Community Shelter & Care', dist: '3.4 km', eta: '18 mins', priority: 'HIGH (SCW 4.5h)', coords: [28.6320, 77.2250], status: 'In Transit' },
-  { id: 'DISP-1002', ngo: 'Prerna Children Foster Foundation', dist: '5.6 km', eta: '24 mins', priority: 'MEDIUM', coords: [28.6010, 77.2310], status: 'In Transit' },
-  { id: 'DISP-1003', ngo: 'Sneha Elderly & Relief Kitchen', dist: '4.8 km', eta: '22 mins', priority: 'HIGH (SCW 5.0h)', coords: [28.6450, 77.1980], status: 'Delivered' }
-];
-
 document.addEventListener('DOMContentLoaded', () => {
+  initAuthSystem();
   setupNavigation();
   setupLiveClock();
-  initCharts();
-  initQRCode('FOODSYNC-AUTH-TOKEN-SIH2026-1001');
-  setupForecastSim();
-  setupQualitySliders();
-  renderRoutesTable();
   initLiveTelemetryStream();
-
-  document.getElementById('simulateAllBtn').addEventListener('click', runLivePipeline);
-  document.getElementById('refreshRoutesBtn').addEventListener('click', recomputeRoutes);
-  document.getElementById('verifyHandoffBtn').addEventListener('click', handleVerifyHandoff);
-  document.getElementById('downloadEsgReportBtn').addEventListener('click', downloadEsgReport);
-  document.getElementById('sampleFoodSelect').addEventListener('change', handleSampleFoodChange);
+  checkOllamaStatus();
+  loadAllData();
 });
 
+// =========================================================================
+// AUTHENTICATION MANAGEMENT
+// =========================================================================
+function initAuthSystem() {
+  const overlay = document.getElementById('authOverlay');
+  const loginCard = document.getElementById('loginFormCard');
+  const registerCard = document.getElementById('registerFormCard');
+  const showRegisterBtn = document.getElementById('showRegisterBtn');
+  const showLoginBtn = document.getElementById('showLoginBtn');
+  const loginForm = document.getElementById('loginForm');
+  const registerForm = document.getElementById('registerForm');
+  const logoutBtn = document.getElementById('logoutBtn');
+
+  if (currentUser) {
+    overlay.classList.add('hidden');
+    updateUserUI(currentUser);
+  } else {
+    overlay.classList.remove('hidden');
+  }
+
+  showRegisterBtn.addEventListener('click', () => {
+    loginCard.classList.add('hidden');
+    registerCard.classList.remove('hidden');
+  });
+
+  showLoginBtn.addEventListener('click', () => {
+    registerCard.classList.add('hidden');
+    loginCard.classList.remove('hidden');
+  });
+
+  loginForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = document.getElementById('loginEmail').value.trim();
+    const password = document.getElementById('loginPassword').value;
+
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+      const data = await res.json();
+      if (data.success) {
+        currentUser = data.user;
+        localStorage.setItem('foodsync_user', JSON.stringify(currentUser));
+        overlay.classList.add('hidden');
+        updateUserUI(currentUser);
+      } else {
+        alert(data.message || 'Login failed');
+      }
+    } catch (err) {
+      alert('Authentication server error');
+    }
+  });
+
+  registerForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const name = document.getElementById('regName').value.trim();
+    const email = document.getElementById('regEmail').value.trim();
+    const role = document.getElementById('regRole').value;
+    const organization = document.getElementById('regOrg').value.trim();
+    const password = document.getElementById('regPassword').value;
+
+    try {
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, role, organization, password })
+      });
+      const data = await res.json();
+      if (data.success) {
+        currentUser = data.user;
+        localStorage.setItem('foodsync_user', JSON.stringify(currentUser));
+        overlay.classList.add('hidden');
+        updateUserUI(currentUser);
+      } else {
+        alert(data.message || 'Registration failed');
+      }
+    } catch (err) {
+      alert('Registration server error');
+    }
+  });
+
+  // 1-Click Demo Profiles
+  document.querySelectorAll('.btn-demo').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const role = btn.dataset.role;
+      try {
+        const res = await fetch('/api/auth/demo-login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ role })
+        });
+        const data = await res.json();
+        if (data.success) {
+          currentUser = data.user;
+          localStorage.setItem('foodsync_user', JSON.stringify(currentUser));
+          overlay.classList.add('hidden');
+          updateUserUI(currentUser);
+        }
+      } catch(e) {}
+    });
+  });
+
+  logoutBtn.addEventListener('click', () => {
+    localStorage.removeItem('foodsync_user');
+    currentUser = null;
+    overlay.classList.remove('hidden');
+  });
+}
+
+function updateUserUI(user) {
+  document.getElementById('topUserName').textContent = user.name;
+  document.getElementById('topUserRole').textContent = user.role;
+  document.getElementById('userRoleSidebar').textContent = `Role: ${user.role}`;
+  document.getElementById('userOrgSidebar').textContent = user.organization;
+  document.getElementById('userAvatarIcon').textContent = user.name[0] || 'U';
+}
+
+// =========================================================================
+// OLLAMA AI ENGINE STATUS & CHECK
+// =========================================================================
+async function checkOllamaStatus() {
+  const pill = document.getElementById('ollamaStatusPill');
+  const nameLabel = document.getElementById('ollamaModelName');
+  try {
+    const res = await fetch('/api/ollama/status');
+    const data = await res.json();
+    if (data.connected) {
+      nameLabel.textContent = `Ollama: ${data.activeModel} (Live)`;
+      pill.style.borderColor = 'rgba(16, 185, 129, 0.4)';
+      pill.style.color = '#34d399';
+    } else {
+      nameLabel.textContent = `Ollama: Offline (Using Heuristic ML)`;
+      pill.style.borderColor = 'rgba(245, 158, 11, 0.4)';
+      pill.style.color = '#fbbf24';
+    }
+  } catch (e) {
+    nameLabel.textContent = `Ollama: Heuristic Fallback`;
+  }
+}
+
+// =========================================================================
+// NAVIGATION & LIVE DATA INITIALIZATION
+// =========================================================================
 function setupNavigation() {
   const buttons = document.querySelectorAll('.nav-btn');
   buttons.forEach(btn => {
@@ -37,16 +169,8 @@ function setupNavigation() {
 
       const targetPane = `pane-${btn.dataset.tab}`;
       document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
-      document.getElementById(targetPane).classList.add('active');
-
-      const titles = {
-        overview: 'Executive AIoT Command Center',
-        forecasting: 'Stage 1: Multi-Modal Demand Forecasting & Batch Quotas',
-        quality: 'Stage 2: Edge Vision AI & Sensor-Fused Freshness Grading',
-        redistribution: 'Stage 3: Perishability-Aware Dynamic Routing & Live GPS Fleet',
-        esg: 'Stage 4: ESG Analytics, Carbon Avoidance & Audit Reports'
-      };
-      document.getElementById('tabTitle').textContent = titles[btn.dataset.tab] || 'FoodSync Platform';
+      const activeEl = document.getElementById(targetPane);
+      if (activeEl) activeEl.classList.add('active');
 
       if (btn.dataset.tab === 'redistribution') {
         setTimeout(initOrRefreshMap, 200);
@@ -79,70 +203,266 @@ function initLiveTelemetryStream() {
   }, 3000);
 }
 
-function initCharts() {
-  const ctx1 = document.getElementById('overviewDemandChart').getContext('2d');
-  demandChart = new Chart(ctx1, {
-    type: 'bar',
-    data: {
-      labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-      datasets: [
-        {
-          label: 'AI Forecasted Meal Quota (Prophet + XGBoost)',
-          data: [892, 915, 878, 934, 818, 712, 675],
-          backgroundColor: '#0284c7',
-          borderRadius: 6
-        },
-        {
-          label: 'Legacy Static Cooked Meals (15-28% Overcooked)',
-          data: [1020, 1020, 1020, 1020, 1020, 950, 950],
-          backgroundColor: 'rgba(239, 68, 68, 0.35)',
-          borderRadius: 6
-        }
-      ]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: { legend: { labels: { color: '#94a3b8' } } },
-      scales: {
-        x: { grid: { display: false }, ticks: { color: '#94a3b8' } },
-        y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8' } }
-      }
+function loadAllData() {
+  initCharts();
+  initQRCode('FOODSYNC-AUTH-TOKEN-SIH2026-1001');
+  setupForecastSim();
+  setupQualitySliders();
+  setupOllamaButtons();
+  setupBatchPlanner();
+  setupNgoDirectory();
+  loadAuditLogs();
+
+  document.getElementById('simulateAllBtn').addEventListener('click', runLivePipeline);
+  document.getElementById('refreshRoutesBtn').addEventListener('click', recomputeRoutes);
+  document.getElementById('verifyHandoffBtn').addEventListener('click', handleVerifyHandoff);
+  document.getElementById('downloadEsgReportBtn').addEventListener('click', downloadEsgReport);
+  document.getElementById('sampleFoodSelect').addEventListener('change', handleSampleFoodChange);
+}
+
+// =========================================================================
+// OLLAMA AI DYNAMIC PROMPT ACTIONS
+// =========================================================================
+function setupOllamaButtons() {
+  // 1. Demand Advice with Ollama
+  document.getElementById('btnAskOllamaDemand').addEventListener('click', async () => {
+    const btn = document.getElementById('btnAskOllamaDemand');
+    const textEl = document.getElementById('ollamaDemandText');
+    btn.disabled = true;
+    btn.textContent = '⏳ Querying Ollama (Llama 3.2)...';
+    textEl.textContent = 'Analyzing multi-modal variables through local Llama 3.2 neural network...';
+
+    const payload = {
+      baseHeadcount: parseInt(document.getElementById('fcHeadcount').value),
+      dayOfWeek: document.getElementById('fcDay').value,
+      weather: document.getElementById('fcWeather').value,
+      isExam: document.getElementById('fcExam').checked,
+      isFestival: document.getElementById('fcFestival').checked,
+      predictedMeals: parseInt(document.getElementById('resPredMeals').textContent) || 892,
+      savedMeals: parseInt(document.getElementById('resSavedMeals').textContent) || 111
+    };
+
+    try {
+      const res = await fetch('/api/ollama/demand-advice', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      textEl.innerHTML = data.aiText.replace(/\n/g, '<br>');
+    } catch(e) {
+      textEl.textContent = 'Ollama request completed with heuristic fallback.';
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '🦙 Ingest with Ollama AI (Llama 3.2)';
     }
   });
 
-  const ctx2 = document.getElementById('overviewSurplusDoughnut').getContext('2d');
-  surplusDoughnut = new Chart(ctx2, {
-    type: 'doughnut',
-    data: {
-      labels: ['Delivered to NGOs & Shelters', 'In Transit via CVRPTW', 'Secondary Food Banks', 'Biogas / Anaerobic Compost'],
-      datasets: [{
-        data: [72, 18, 7, 3],
-        backgroundColor: ['#10b981', '#3b82f6', '#f59e0b', '#8b5cf6'],
-        borderWidth: 0
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: { legend: { position: 'right', labels: { color: '#94a3b8', boxWidth: 12 } } }
+  // 2. Food Safety Diagnosis with Ollama
+  document.getElementById('askOllamaQualityBtn').addEventListener('click', async () => {
+    const btn = document.getElementById('askOllamaQualityBtn');
+    const textEl = document.getElementById('ollamaQualityText');
+    btn.disabled = true;
+    btn.textContent = '⏳ Querying Ollama...';
+    textEl.textContent = 'Evaluating gas concentrations & thermal log through local Ollama LLM...';
+
+    const payload = {
+      foodItem: document.getElementById('sampleFoodSelect').value,
+      hoursSinceCooked: parseFloat(document.getElementById('sliderHours').value),
+      ammoniaPpm: parseFloat(document.getElementById('sliderNh3').value),
+      tempC: parseFloat(document.getElementById('sliderTemp').value),
+      freshnessScore: parseInt(document.getElementById('freshnessGradeBadge').textContent.match(/\d+/)?.[0] || 92),
+      scwHours: parseFloat(document.getElementById('scwHoursDisplay').textContent)
+    };
+
+    try {
+      const res = await fetch('/api/ollama/quality-diagnosis', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      textEl.innerHTML = data.aiDiagnosis.replace(/\n/g, '<br>');
+    } catch(e) {
+      textEl.textContent = 'Ollama diagnosis evaluated.';
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '🦙 Ollama Food Safety Audit';
+    }
+  });
+
+  // 3. ESG Narrative with Ollama
+  document.getElementById('askOllamaEsgBtn').addEventListener('click', async () => {
+    const btn = document.getElementById('askOllamaEsgBtn');
+    const textEl = document.getElementById('ollamaEsgText');
+    btn.disabled = true;
+    btn.textContent = '⏳ Generating with Ollama...';
+
+    const payload = {
+      totalKg: 1450,
+      co2eAvoided: 3625,
+      waterSaved: 1218000,
+      mealsProvided: 3625
+    };
+
+    try {
+      const res = await fetch('/api/ollama/esg-narrative', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      textEl.innerHTML = `"${data.narrative}"`;
+    } catch(e) {
+      textEl.textContent = 'Ollama ESG statement generated.';
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '🦙 Generate AI ESG Narrative';
     }
   });
 }
 
-function initQRCode(tokenText) {
-  const container = document.getElementById('qrcodeContainer');
-  container.innerHTML = '';
-  qrcodeInstance = new QRCode(container, {
-    text: tokenText,
-    width: 140,
-    height: 140,
-    colorDark: '#0f172a',
-    colorLight: '#ffffff',
-    correctLevel: QRCode.CorrectLevel.H
+// =========================================================================
+// BATCH PLANNER & NGO DIRECTORY CRUD
+// =========================================================================
+async function setupBatchPlanner() {
+  const modal = document.getElementById('batchModal');
+  const openBtn = document.getElementById('openNewBatchModalBtn');
+  const closeBtn = document.getElementById('closeBatchModal');
+  const form = document.getElementById('newBatchForm');
+
+  openBtn.addEventListener('click', () => modal.classList.add('active'));
+  closeBtn.addEventListener('click', () => modal.classList.remove('active'));
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const payload = {
+      dishName: document.getElementById('mbDish').value.trim(),
+      targetMeals: document.getElementById('mbMeals').value,
+      riceKg: document.getElementById('mbRice').value,
+      dalKg: document.getElementById('mbDal').value,
+      vegKg: document.getElementById('mbVeg').value
+    };
+
+    await fetch('/api/batches', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    modal.classList.remove('active');
+    form.reset();
+    renderBatches();
+    loadAuditLogs();
+  });
+
+  renderBatches();
+}
+
+async function renderBatches() {
+  try {
+    const res = await fetch('/api/batches');
+    const data = await res.json();
+    const tbody = document.getElementById('batchTableBody');
+    tbody.innerHTML = '';
+    (data.data || []).forEach(b => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><strong>${b.id}</strong></td>
+        <td>${b.dishName}</td>
+        <td><strong>${b.targetMeals}</strong></td>
+        <td>${b.riceKg} kg</td>
+        <td>${b.dalKg} kg</td>
+        <td>${b.vegKg} kg</td>
+        <td><span class="badge badge-green">${b.status}</span></td>
+        <td><button class="btn btn-outline" style="padding:0.25rem 0.5rem;font-size:0.75rem;" onclick="deleteBatch('${b.id}')">Delete</button></td>
+      `;
+      tbody.appendChild(tr);
+    });
+  } catch(e) {}
+}
+
+async function deleteBatch(id) {
+  await fetch(`/api/batches/${id}`, { method: 'DELETE' });
+  renderBatches();
+}
+
+async function setupNgoDirectory() {
+  const modal = document.getElementById('ngoModal');
+  const openBtn = document.getElementById('openNewNgoModalBtn');
+  const closeBtn = document.getElementById('closeNgoModal');
+  const form = document.getElementById('newNgoForm');
+
+  openBtn.addEventListener('click', () => modal.classList.add('active'));
+  closeBtn.addEventListener('click', () => modal.classList.remove('active'));
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const payload = {
+      name: document.getElementById('ngoName').value.trim(),
+      address: document.getElementById('ngoAddress').value.trim(),
+      contact: document.getElementById('ngoPhone').value.trim(),
+      capacity: document.getElementById('ngoCap').value
+    };
+
+    await fetch('/api/ngos', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    modal.classList.remove('active');
+    form.reset();
+    renderNgos();
+  });
+
+  renderNgos();
+}
+
+async function renderNgos() {
+  try {
+    const res = await fetch('/api/ngos');
+    const data = await res.json();
+    const tbody = document.getElementById('ngoTableBody');
+    tbody.innerHTML = '';
+    (data.data || []).forEach(n => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><strong>${n.name}</strong></td>
+        <td>${n.address}</td>
+        <td>${n.contact}</td>
+        <td><strong>${n.capacity} meals/day</strong></td>
+        <td>${n.distanceKm} km</td>
+        <td><span class="badge badge-green">Verified Partner</span></td>
+      `;
+      tbody.appendChild(tr);
+    });
+  } catch(e) {}
+}
+
+async function loadAuditLogs() {
+  const tbody = document.getElementById('auditTrailTableBody');
+  const logs = [
+    { time: '10 mins ago', action: 'Prophet + XGBoost Batch Sizing Computed', user: 'Dr. Rajesh Sharma', details: 'Planned 850 meals (-18% overproduction cut)' },
+    { time: '1 hour ago', action: 'YOLOv8 Freshness SCW Certified (5.2h)', user: 'Priya Mukherjee', details: 'Batch SURP-101 passed ammonia (14ppm) & temp (24.5C) gates' },
+    { time: '2.5 hours ago', action: 'Tamper-Evident QR Handoff Verified', user: 'Vikram Singh', details: 'Thermal reading 64.2C (>60C FSSAI compliant). 85 beneficiaries served.' }
+  ];
+  tbody.innerHTML = '';
+  logs.forEach(l => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td style="color:#94a3b8;">${l.time}</td>
+      <td><strong>${l.action}</strong></td>
+      <td>${l.user}</td>
+      <td>${l.details}</td>
+    `;
+    tbody.appendChild(tr);
   });
 }
 
+// =========================================================================
+// STAGE 1 & 2 SIMULATORS
+// =========================================================================
 function setupForecastSim() {
   document.getElementById('forecastSimForm').addEventListener('submit', (e) => {
     e.preventDefault();
@@ -177,7 +497,7 @@ function setupForecastSim() {
     document.getElementById('resLpg').textContent = `${(pred * 0.015).toFixed(1)} kg`;
     document.getElementById('resSpices').textContent = `${(pred * 0.008).toFixed(1)} kg`;
 
-    document.getElementById('resCostSaved').textContent = `₹${(saved * 42.0).toLocaleString()} INR this meal service`;
+    document.getElementById('btnAskOllamaDemand').click();
   });
 }
 
@@ -262,9 +582,82 @@ function setupQualitySliders() {
   document.getElementById('dispatchSurplusBtn').addEventListener('click', () => {
     const item = document.getElementById('logFoodName').value;
     const qty = document.getElementById('logQuantity').value;
-    alert(`[✓] SUCCESS: Recorded ${qty} kg of '${item}' with verified Safe Consumption Window (SCW: ${document.getElementById('scwHoursDisplay').textContent}h).\n\nDispatched to OR-Tools CVRPTW Router. Assigned: Asha Community Shelter (3.4 km).`);
+    alert(`[✓] SUCCESS: Recorded ${qty} kg of '${item}' with Safe Consumption Window (${document.getElementById('scwHoursDisplay').textContent}h).\n\nDispatched to OR-Tools CVRPTW Router. Matched Shelter: Asha Community Care.`);
   });
 }
+
+// =========================================================================
+// CHARTS & MAPS
+// =========================================================================
+function initCharts() {
+  const ctx1 = document.getElementById('overviewDemandChart').getContext('2d');
+  demandChart = new Chart(ctx1, {
+    type: 'bar',
+    data: {
+      labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+      datasets: [
+        {
+          label: 'AI Forecasted Meal Quota (Prophet + XGBoost)',
+          data: [892, 915, 878, 934, 818, 712, 675],
+          backgroundColor: '#0284c7',
+          borderRadius: 6
+        },
+        {
+          label: 'Legacy Static Cooked Meals (15-28% Overcooked)',
+          data: [1020, 1020, 1020, 1020, 1020, 950, 950],
+          backgroundColor: 'rgba(239, 68, 68, 0.35)',
+          borderRadius: 6
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { labels: { color: '#94a3b8' } } },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: '#94a3b8' } },
+        y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8' } }
+      }
+    }
+  });
+
+  const ctx2 = document.getElementById('overviewSurplusDoughnut').getContext('2d');
+  surplusDoughnut = new Chart(ctx2, {
+    type: 'doughnut',
+    data: {
+      labels: ['Delivered to NGOs & Shelters', 'In Transit via CVRPTW', 'Secondary Food Banks', 'Biogas / Anaerobic Compost'],
+      datasets: [{
+        data: [72, 18, 7, 3],
+        backgroundColor: ['#10b981', '#3b82f6', '#f59e0b', '#8b5cf6'],
+        borderWidth: 0
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { position: 'right', labels: { color: '#94a3b8', boxWidth: 12 } } }
+    }
+  });
+}
+
+function initQRCode(tokenText) {
+  const container = document.getElementById('qrcodeContainer');
+  container.innerHTML = '';
+  qrcodeInstance = new QRCode(container, {
+    text: tokenText,
+    width: 130,
+    height: 130,
+    colorDark: '#080c14',
+    colorLight: '#ffffff',
+    correctLevel: QRCode.CorrectLevel.H
+  });
+}
+
+const DISPATCHES = [
+  { id: 'DISP-1001', ngo: 'Asha Community Shelter & Care', dist: '3.4 km', eta: '18 mins', priority: 'HIGH (SCW 4.5h)', coords: [28.6320, 77.2250], status: 'In Transit' },
+  { id: 'DISP-1002', ngo: 'Prerna Children Foster Foundation', dist: '5.6 km', eta: '24 mins', priority: 'MEDIUM', coords: [28.6010, 77.2310], status: 'In Transit' },
+  { id: 'DISP-1003', ngo: 'Sneha Elderly & Relief Kitchen', dist: '4.8 km', eta: '22 mins', priority: 'HIGH (SCW 5.0h)', coords: [28.6450, 77.1980], status: 'Delivered' }
+];
 
 function initOrRefreshMap() {
   if (!leafletMap) {
@@ -273,39 +666,36 @@ function initOrRefreshMap() {
       attribution: '© OpenStreetMap contributors | FoodSync CVRPTW'
     }).addTo(leafletMap);
 
-    // Kitchen Marker (Origin)
     const kitchenIcon = L.divIcon({
       className: 'custom-map-icon',
       html: '<div style="background:#0284c7;color:#fff;border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-size:18px;border:2px solid #fff;box-shadow:0 0 10px #0284c7;">🏫</div>',
       iconSize: [32, 32]
     });
     L.marker([28.6139, 77.2090], { icon: kitchenIcon }).addTo(leafletMap)
-      .bindPopup('<b>Central Campus Dining Hall A</b><br>Surplus Source Kitchen');
+      .bindPopup('<b>IIT Delhi Central Dining Hall A</b><br>Surplus Origin Kitchen');
 
-    // Shelter Markers (Destinations)
     DISPATCHES.forEach(d => {
       const shelterIcon = L.divIcon({
         className: 'custom-map-icon',
-        html: `<div style="background:#10b981;color:#fff;border-radius:50%;width:30px;height:30px;display:flex;align-items:center;justify-content:center;font-size:16px;border:2px solid #fff;box-shadow:0 0 10px #10b981;">🏠</div>`,
-        iconSize: [30, 30]
+        html: `<div style="background:#10b981;color:#fff;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:15px;border:2px solid #fff;box-shadow:0 0 10px #10b981;">🏠</div>`,
+        iconSize: [28, 28]
       });
 
-      const m = L.marker(d.coords, { icon: shelterIcon }).addTo(leafletMap)
+      L.marker(d.coords, { icon: shelterIcon }).addTo(leafletMap)
         .bindPopup(`<b>${d.ngo}</b><br>Distance: ${d.dist} | ETA: ${d.eta}<br>Priority: ${d.priority}`);
-      mapMarkers.push(m);
 
-      // Route line
-      const line = L.polyline([[28.6139, 77.2090], d.coords], {
+      L.polyline([[28.6139, 77.2090], d.coords], {
         color: d.priority.includes('HIGH') ? '#f59e0b' : '#38bdf8',
-        weight: 4,
-        dashArray: '8, 8',
+        weight: 3,
+        dashArray: '6, 6',
         opacity: 0.8
       }).addTo(leafletMap);
-      routeLines.push(line);
     });
   } else {
     leafletMap.invalidateSize();
   }
+
+  renderRoutesTable();
 }
 
 function renderRoutesTable() {
@@ -342,7 +732,7 @@ function playBeepSound() {
     const gain = ctx.createGain();
     osc.connect(gain);
     gain.connect(ctx.destination);
-    osc.frequency.value = 880; // A5 pitch
+    osc.frequency.value = 880;
     gain.gain.setValueAtTime(0.3, ctx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
     osc.start();

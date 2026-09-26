@@ -1,7 +1,7 @@
 {
   "name": "foodsync-ai-food-waste-reduction",
-  "version": "2.0.0",
-  "description": "Smart India Hackathon 2026 (SIH26234): AI-Powered Food Waste Reduction & Sustainable Redistribution Ecosystem for Institutional Kitchens and MoFPI",
+  "version": "3.0.0",
+  "description": "Smart India Hackathon 2026 (SIH26234): AIoT Food Waste Reduction & Sustainable Redistribution with Local Ollama AI, JWT Auth & Leaflet Maps",
   "main": "server/server.js",
   "scripts": {
     "start": "node server/server.js",
@@ -13,17 +13,15 @@
   "keywords": [
     "sih2026",
     "foodsync",
+    "ollama-ai",
+    "llama3",
     "mofpi",
     "food-waste-reduction",
-    "prophet-xgboost",
-    "yolov8-vision-ai",
-    "cvrptw-routing",
-    "esg-reporting",
-    "iot-sensors",
-    "leaflet-maps",
-    "fssai"
+    "jwt-auth",
+    "cvrptw",
+    "esg-reporting"
   ],
-  "author": "Team FoodSync (Team ID: 144697)",
+  "author": "Team FoodSync (ID: 144697)",
   "license": "MIT",
   "dependencies": {
     "express": "^4.19.2",
