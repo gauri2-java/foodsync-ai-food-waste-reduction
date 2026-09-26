@@ -35,8 +35,8 @@ function loginForm() {
     <div class="auth-brand"><img src="/img/logo.svg" alt=""><span>FoodSync</span></div>
     <div><h1>Sign in</h1><p class="muted">Welcome back. Enter your organisation credentials.</p></div>
     <form class="form" id="login-form">
-      <div class="field"><label for="email">Email address</label><input id="email" name="email" type="email" autocomplete="username" required></div>
-      <div class="field"><label for="password">Password</label><input id="password" name="password" type="password" autocomplete="current-password" required></div>
+      <div class="field"><label for="email">Email address</label><input id="email" name="email" type="email" autocomplete="username" autofocus required></div>
+      <div class="field"><label for="password">Password</label><div class="pw-wrap"><input id="password" name="password" type="password" autocomplete="current-password" required><button type="button" class="pw-toggle" aria-label="Show password">Show</button></div></div>
       <button class="btn primary" type="submit" style="padding:10px">Sign in</button>
     </form>
     <p class="muted" style="margin:0">Don't have an account? <a href="#/register">Request access</a></p>
@@ -66,8 +66,20 @@ async function signIn(email, password, onLogin) {
   onLogin();
 }
 
+function bindPasswordToggle(root) {
+  root.querySelectorAll('.pw-toggle').forEach((b) => (b.onclick = () => {
+    const input = b.previousElementSibling;
+    const show = input.type === 'password';
+    input.type = show ? 'text' : 'password';
+    b.textContent = show ? 'Hide' : 'Show';
+    b.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+  }));
+}
+
 function bindLogin(root, onLogin) {
   const form = $('#login-form', root);
+  bindPasswordToggle(root);
+  form.email.focus();
   form.onsubmit = async (e) => {
     e.preventDefault();
     const { email, password } = formData(form);

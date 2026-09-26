@@ -1,8 +1,7 @@
 import { api } from '../api.js';
 import { html, raw, h, $, fmt, kpi, badge, progress } from '../ui.js';
-import { chart, palette, alpha } from '../charts.js';
-import { createMap, addSites, fit, siteIcon } from '../map.js';
-import { on } from '../live.js';
+import { chart, palette, alpha, lineStyle } from '../charts.js';
+import { renderNetworkMap } from '../components/networkMap.js';
 import { store } from '../store.js';
 
 const RECIPIENT_ROLES = ['ngo_coordinator', 'buyer'];
@@ -59,25 +58,20 @@ async function drawTrend(el) {
   const trend = await api.get('/kitchen/waste-trend?days=90');
   if (!trend.length) { el.closest('.card').hidden = true; return; }
   const p = palette();
+  const labels = trend.map((t) => fmt.date(t.date));
+  const goLive = trend.find((t) => t.planned);
   chart(el, 'line', {
-    labels: trend.map((t) => fmt.date(t.date)),
-    datasets: [
-      { label: 'Overproduction %', data: trend.map((t) => (t.prepared ? +((100 * (t.prepared - t.served)) / t.prepared).toFixed(1) : null)), borderColor: p.danger, backgroundColor: alpha(p.danger, 0.08), fill: true, tension: 0.3, pointRadius: 0, yAxisID: 'y' },
-      { label: 'Leftover kg', data: trend.map((t) => t.leftover_kg), borderColor: p.warn, tension: 0.3, pointRadius: 0, borderDash: [4, 3], yAxisID: 'y1' },
-    ],
-  }, { scales: { y: { title: { display: true, text: '%', color: p.faint } }, y1: { position: 'right', grid: { display: false }, ticks: { color: p.faint }, beginAtZero: true } } });
+    labels,
+    datasets: [{ label: 'Overproduction', data: trend.map((t) => (t.prepared ? +((100 * (t.prepared - t.served)) / t.prepared).toFixed(1) : null)), ...lineStyle(p.series[0], { fill: true, backgroundColor: alpha(p.series[0], 0.08) }) }],
+  }, {
+    plugins: { fsMarker: goLive ? { at: fmt.date(goLive.date), label: 'FoodSync planning starts' } : {}, tooltip: { callbacks: { label: (c) => ` Overproduction ${c.parsed.y}%` } } },
+    scales: { y: { ticks: { callback: (v) => `${v}%` } } },
+  });
 }
 
 async function drawNetwork(el) {
   const [sites, vehicles] = await Promise.all([store.allSites(), api.get('/logistics/vehicles').catch(() => [])]);
-  const map = createMap(el);
-  addSites(map, sites);
-  const markers = new Map();
-  for (const v of vehicles.filter((x) => x.last_lat || x.depot_lat)) {
-    markers.set(v.id, window.L.marker([v.last_lat ?? v.depot_lat, v.last_lng ?? v.depot_lng], { icon: siteIcon('vehicle') }).bindPopup(`<b>${v.registration}</b><br>${v.status}`).addTo(map));
-  }
-  fit(map, sites.map((s) => [s.lat, s.lng]));
-  on('vehicle', (v) => markers.get(v.id)?.setLatLng([v.lat, v.lng]));
+  renderNetworkMap(el, { sites, vehicles });
 }
 
 function recentAlerts(alerts) {
@@ -95,13 +89,11 @@ async function renderOps(root, user) {
       ${raw(impactRow(o))}
       ${raw(opsRow(o))}
       <div class="grid g-2-1">
-        <div class="card"><div class="card-head"><div><h3>Kitchen overproduction trend</h3><p>90 days · forecast planning went live mid-period</p></div></div><div class="chart-box"><canvas id="trend"></canvas></div></div>
+        <div class="card"><div class="card-head"><div><h3>Kitchen overproduction</h3><p>Share of prepared portions not served · last 90 days</p></div></div><div class="chart-box"><canvas id="trend"></canvas></div></div>
         ${raw(preventionCard(o.prevention30d))}
       </div>
-      <div class="grid g-2-1">
-        <div class="card"><div class="card-head"><div><h3>Redistribution network</h3><p>Kitchens, plant, NGOs, buyers, compost and live vehicles</p></div></div><div class="map" id="net-map"></div></div>
-        <div class="stack">${raw(pipelineCard(o))}<div class="card"><div class="card-head"><h3>Open alerts</h3><a class="btn sm" href="#/alerts">All</a></div>${raw(recentAlerts(alerts))}</div></div>
-      </div>
+      <div class="card net-card"><div class="card-head"><div><h3>Redistribution network</h3><p>Kitchens, processing plant, NGOs, buyers, compost facilities and live vehicles</p></div></div><div id="net-map"></div></div>
+      <div class="grid g2">${raw(pipelineCard(o))}<div class="card"><div class="card-head"><h3>Open alerts</h3><a class="btn sm" href="#/alerts">All</a></div>${raw(recentAlerts(alerts))}</div></div>
     </div>`;
   await Promise.all([drawTrend($('#trend', root)), drawNetwork($('#net-map', root))]);
 }
@@ -116,7 +108,7 @@ async function renderRecipient(root, user) {
     ${user.orgVerified === false ? raw('<div class="callout amber" style="margin-bottom:16px">Your organisation is awaiting verification by an administrator. You will start receiving offers once verified.</div>') : ''}
     <div class="stack">
       <div class="grid g4">${kpi('Offers waiting', pending.length, '<a href="#/offers">respond now</a>')}${kpi('Deliveries on the way', incoming.length)}${kpi('Food received · 90 days', fmt.kg(received))}${kpi('Deliveries · 90 days', fmt.n(metrics.recipients.reduce((s, r) => s + r.deliveries, 0)))}</div>
-      <div class="card"><div class="card-head"><h3>Network</h3></div><div class="map" id="net-map"></div></div>
+      <div class="card net-card"><div class="card-head"><h3>Network</h3></div><div id="net-map"></div></div>
     </div>`;
   await drawNetwork($('#net-map', root));
 }

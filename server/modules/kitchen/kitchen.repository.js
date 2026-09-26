@@ -55,7 +55,8 @@ const demandSeries = (siteId, slot) =>
 const wasteTrend = (siteIds, from) =>
   db.query(
     `SELECT log_date AS date, sum(prepared_portions)::int AS prepared, sum(served_portions)::int AS served,
-       sum(leftover_kg)::float AS leftover_kg, sum(plate_waste_kg)::float AS plate_waste_kg, sum(headcount)::int AS headcount
+       sum(leftover_kg)::float AS leftover_kg, sum(plate_waste_kg)::float AS plate_waste_kg, sum(headcount)::int AS headcount,
+       bool_or(forecast_portions IS NOT NULL) AS planned
      FROM meal_logs WHERE ($1::int[] IS NULL OR site_id = ANY($1)) AND log_date >= $2
      GROUP BY log_date ORDER BY log_date`,
     [siteIds, from]

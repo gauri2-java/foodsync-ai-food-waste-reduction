@@ -1,6 +1,6 @@
 import { api } from '../api.js';
 import { html, raw, h, $, fmt, options, table, badge, errorToast, withBusy, modal, formData } from '../ui.js';
-import { chart, palette, alpha } from '../charts.js';
+import { chart, palette, alpha, lineStyle } from '../charts.js';
 import { on } from '../live.js';
 import { store, donorSites } from '../store.js';
 
@@ -28,11 +28,11 @@ async function drawUnitChart(canvas, unit, device) {
   const c = chart(canvas, 'line', {
     labels: rows.map((r) => fmt.time(r.t)),
     datasets: [
-      { label: 'Temperature °C', data: rows.map((r) => r.v), borderColor: p.info, backgroundColor: alpha(p.info, 0.08), fill: true, pointRadius: 0, tension: 0.3, borderWidth: 1.5 },
-      ...(unit.max_temp_c != null ? [{ label: 'Max', data: rows.map(() => unit.max_temp_c), borderColor: p.danger, borderDash: [4, 4], pointRadius: 0, borderWidth: 1 }] : []),
-      ...(unit.min_temp_c != null ? [{ label: 'Min', data: rows.map(() => unit.min_temp_c), borderColor: p.warn, borderDash: [4, 4], pointRadius: 0, borderWidth: 1 }] : []),
+      { label: 'Temperature', data: rows.map((r) => r.v), ...lineStyle(p.series[0], { borderWidth: 1.5, tension: 0.25, fill: true, backgroundColor: alpha(p.series[0], 0.07) }) },
+      ...(unit.max_temp_c != null ? [{ label: `Max ${unit.max_temp_c} °C`, data: rows.map(() => unit.max_temp_c), borderColor: p.status.critical, borderDash: [4, 4], pointRadius: 0, borderWidth: 1 }] : []),
+      ...(unit.min_temp_c != null ? [{ label: `Min ${unit.min_temp_c} °C`, data: rows.map(() => unit.min_temp_c), borderColor: p.neutral, borderDash: [4, 4], pointRadius: 0, borderWidth: 1 }] : []),
     ],
-  }, { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: false }, x: { ticks: { maxTicksLimit: 6, color: p.faint } } } });
+  }, { plugins: { legend: { display: false }, tooltip: { callbacks: { label: (x) => ` ${x.dataset.label.startsWith('M') ? x.dataset.label : `${fmt.n(x.parsed.y, 1)} °C`}` } } }, scales: { y: { beginAtZero: false, ticks: { callback: (v) => `${v}°` } }, x: { ticks: { maxTicksLimit: 6 } } } });
   return c;
 }
 

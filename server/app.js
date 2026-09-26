@@ -51,6 +51,7 @@ function buildApp() {
   app.use('/uploads', express.static(config.uploadDir, { maxAge: '7d' }));
   app.use('/vendor/chart.js', express.static(path.join(root, 'node_modules/chart.js/dist')));
   app.use('/vendor/leaflet', express.static(path.join(root, 'node_modules/leaflet/dist')));
+  app.use('/vendor/markercluster', express.static(path.join(root, 'node_modules/leaflet.markercluster/dist')));
   app.use(express.static(path.join(root, 'client')));
   app.get('/{*splat}', (req, res) => res.sendFile(path.join(root, 'client/index.html')));
 

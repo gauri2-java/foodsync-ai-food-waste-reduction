@@ -1,6 +1,6 @@
 import { api } from '../api.js';
 import { html, raw, h, $, fmt, options, table, badge, errorToast, withBusy, toast, modal } from '../ui.js';
-import { chart, palette, alpha } from '../charts.js';
+import { chart, palette, alpha, lineStyle } from '../charts.js';
 import { kitchenSites } from '../store.js';
 
 const SLOTS = ['breakfast', 'lunch', 'snacks', 'dinner'];
@@ -21,21 +21,29 @@ function modelCards(models) {
 
 function drawSlotChart(canvas, slot, accuracy, services) {
   const p = palette();
+  const [actualC, forecastC, planC] = p.series;
   const past = accuracy.filter((a) => a.slot === slot);
   const future = services.filter((s) => s.slot === slot);
   const labels = [...past.map((a) => a.date), ...future.map((f) => f.date)].map(fmt.date);
-  const pad = (arr, before) => [...new Array(before).fill(null), ...arr];
-  chart(canvas, 'line', {
+  const pad = (arr) => [...new Array(past.length).fill(null), ...arr];
+  return chart(canvas, 'line', {
     labels,
     datasets: [
-      { label: 'Actual served', data: past.map((a) => a.actual), borderColor: p.text, pointRadius: 0, tension: 0.25, borderWidth: 1.6 },
-      { label: 'Prepared', data: past.map((a) => a.prepared), borderColor: p.faint, pointRadius: 0, tension: 0.25, borderDash: [3, 3], borderWidth: 1.2 },
-      { label: 'Forecast', data: [...past.map((a) => a.predicted ?? null), ...future.map((f) => f.predicted)], borderColor: p.brand, pointRadius: 2, tension: 0.25, borderWidth: 2 },
-      { label: 'Upper band', data: pad(future.map((f) => f.upper), past.length), borderColor: 'transparent', backgroundColor: alpha(p.brand, 0.14), fill: '+1', pointRadius: 0 },
-      { label: 'Lower band', data: pad(future.map((f) => f.lower), past.length), borderColor: 'transparent', pointRadius: 0, fill: false },
-      { label: 'Cook plan', data: pad(future.map((f) => f.recommended), past.length), borderColor: p.warn, borderWidth: 1.5, pointStyle: 'rectRot', pointRadius: 3, showLine: false },
+      { label: 'Served (actual)', data: past.map((a) => a.actual), ...lineStyle(actualC) },
+      { label: 'Prepared', data: past.map((a) => a.prepared), ...lineStyle(p.neutral, { borderWidth: 1.5 }) },
+      { label: 'Forecast', data: [...past.map((a) => a.predicted ?? null), ...future.map((f) => f.predicted)], ...lineStyle(forecastC, { pointRadius: (c) => (c.dataIndex >= past.length ? 3 : 0) }) },
+      { label: '80% range', data: pad(future.map((f) => f.upper)), borderWidth: 0, pointRadius: 0, backgroundColor: alpha(forecastC, 0.14), fill: '+1', hideInLegend: false },
+      { label: 'range-low', data: pad(future.map((f) => f.lower)), borderWidth: 0, pointRadius: 0, fill: false },
+      { label: 'Cook plan', data: pad(future.map((f) => f.recommended)), showLine: false, pointStyle: 'rectRounded', pointRadius: 5, pointHoverRadius: 7, backgroundColor: planC, borderColor: p.surface, borderWidth: 2 },
     ],
-  }, { plugins: { legend: { labels: { filter: (i) => !i.text.includes('band'), color: p.muted, boxWidth: 10, usePointStyle: true } } }, scales: { y: { beginAtZero: false } } });
+  }, {
+    plugins: {
+      fsMarker: future.length ? { at: fmt.date(future[0].date), label: 'Forecast →' } : {},
+      legend: { labels: { filter: (i) => i.text !== 'range-low' } },
+      tooltip: { filter: (i) => !['range-low', '80% range'].includes(i.dataset.label), callbacks: { label: (c) => ` ${c.dataset.label}: ${fmt.n(c.parsed.y)} portions` } },
+    },
+    scales: { y: { beginAtZero: false } },
+  });
 }
 
 const PLAN_COLS = [
@@ -74,7 +82,7 @@ async function renderPlan(root, siteId) {
   const avoidedKg = plan.services.reduce((a, s) => a + s.avoidedKg, 0);
   const avoidedCost = plan.services.reduce((a, s) => a + s.avoidedCost, 0);
   root.innerHTML = html`<div class="stack">
-    ${raw(modelCards(plan.models))}
+    ${raw(modelCards([...plan.models].sort((a, b) => SLOTS.indexOf(a.slot) - SLOTS.indexOf(b.slot))))}
     <div class="card"><div class="card-head"><div><h3>Demand forecast</h3><p>Last 5 weeks actuals vs forecast, next 7 days with 80% prediction band and cook plan</p></div>
       <div class="tabs" style="margin:0;border:0">${raw(slots.map((s, i) => `<button data-slot="${s}" class="${i === 0 ? 'active' : ''}">${fmt.title(s)}</button>`).join(''))}</div></div>
       <div class="chart-box tall"><canvas id="fc"></canvas></div></div>

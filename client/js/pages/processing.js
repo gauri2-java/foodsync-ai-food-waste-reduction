@@ -1,6 +1,6 @@
 import { api } from '../api.js';
 import { html, raw, h, $, fmt, table, badge, errorToast, withBusy, toast, modal, kpi, formData, options } from '../ui.js';
-import { chart, palette, alpha } from '../charts.js';
+import { chart, palette, alpha, lineStyle, barStyle, stackStyle } from '../charts.js';
 import { openSurplusForm } from '../components/surplusForm.js';
 
 function findingsCard(findings) {
@@ -22,8 +22,11 @@ function drawAnomalies(root, a) {
   for (const m of a.machines) {
     const c = root.querySelector(`[data-m="${m.id}"]`);
     if (!c || !m.points.length) continue;
-    chart(c, 'line', { labels: m.points.map((x) => fmt.time(x.t)), datasets: [{ data: m.points.map((x) => x.score), borderColor: m.anomalous ? p.danger : p.brand, borderWidth: 1.2, pointRadius: 0, fill: true, backgroundColor: alpha(m.anomalous ? p.danger : p.brand, 0.08) }, { data: m.points.map(() => a.threshold), borderColor: p.faint, borderDash: [3, 3], borderWidth: 1, pointRadius: 0 }] },
-      { plugins: { legend: { display: false }, tooltip: { enabled: false } }, scales: { x: { display: false }, y: { display: false, min: 0.3, max: 0.85 } } });
+    const color = m.anomalous ? p.status.critical : p.series[0];
+    chart(c, 'line', { labels: m.points.map((x) => fmt.time(x.t)), datasets: [
+      { label: 'Anomaly score', data: m.points.map((x) => x.score), ...lineStyle(color, { borderWidth: 1.5, tension: 0.2, fill: true, backgroundColor: alpha(color, 0.08) }) },
+      { label: 'Alert threshold', data: m.points.map(() => a.threshold), borderColor: p.neutral, borderWidth: 1, borderDash: [3, 3], pointRadius: 0 },
+    ] }, { plugins: { legend: { display: false }, tooltip: { enabled: false } }, scales: { x: { display: false }, y: { display: false, min: 0.3, max: 0.85 } } });
   }
 }
 
@@ -32,26 +35,37 @@ function drawTrend(canvas, trend) {
   chart(canvas, 'bar', {
     labels: trend.map((t) => fmt.date(t.date)),
     datasets: [
-      { type: 'bar', label: 'Output kg', data: trend.map((t) => t.outputKg), backgroundColor: alpha(p.brand, 0.7), borderRadius: 3, stack: 'k' },
-      { type: 'bar', label: 'Scrap kg', data: trend.map((t) => t.scrapKg), backgroundColor: alpha(p.danger, 0.7), borderRadius: 3, stack: 'k' },
-      { type: 'line', label: 'OEE %', data: trend.map((t) => +(t.oee * 100).toFixed(1)), borderColor: p.info, pointRadius: 0, tension: 0.3, yAxisID: 'y1' },
+      { label: 'Good output', data: trend.map((t) => Math.round(t.outputKg / 10) / 100), ...stackStyle(p.series[0], { stack: 'k' }) },
+      { label: 'Scrap', data: trend.map((t) => Math.round(t.scrapKg / 10) / 100), ...stackStyle(p.series[1], { stack: 'k' }) },
     ],
-  }, { scales: { x: { stacked: true }, y: { stacked: true }, y1: { position: 'right', min: 0, max: 100, grid: { display: false }, ticks: { color: p.faint } } } });
+  }, { plugins: { tooltip: { callbacks: { label: (c) => ` ${c.dataset.label}: ${fmt.n(c.parsed.y, 2)} t` } } }, scales: { x: { stacked: true }, y: { stacked: true, ticks: { callback: (v) => `${v} t` } } } });
+}
+
+function drawOee(canvas, trend, target) {
+  const p = palette();
+  chart(canvas, 'line', {
+    labels: trend.map((t) => fmt.date(t.date)),
+    datasets: [
+      { label: 'OEE', data: trend.map((t) => +(t.oee * 100).toFixed(1)), ...lineStyle(p.series[0]) },
+      { label: 'Target', data: trend.map(() => target * 100), borderColor: p.neutral, borderWidth: 1, borderDash: [4, 4], pointRadius: 0, hideInLegend: true },
+    ],
+  }, { plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => ` ${c.dataset.label}: ${c.parsed.y}%` } } }, scales: { y: { min: 40, max: 100, ticks: { callback: (v) => `${v}%`, stepSize: 20 } } } });
 }
 
 function drawPareto(canvas, pareto) {
   const p = palette();
-  chart(canvas, 'bar', { labels: pareto.map((d) => fmt.title(d.reason)), datasets: [{ label: 'Minutes', data: pareto.map((d) => d.minutes), backgroundColor: alpha(p.warn, 0.75), borderRadius: 4 }] }, { indexAxis: 'y', plugins: { legend: { display: false } } });
+  chart(canvas, 'bar', { labels: pareto.map((d) => fmt.title(d.reason)), datasets: [{ label: 'Downtime', data: pareto.map((d) => d.minutes), ...barStyle(p.series[0], { borderSkipped: 'start' }) }] },
+    { indexAxis: 'y', layout: { padding: { right: 56 } }, plugins: { fsValueLabels: { format: (v) => `${fmt.n(v)} min` }, tooltip: { callbacks: { label: (c) => ` ${fmt.n(c.parsed.x)} minutes` } } }, scales: { x: { grid: { color: alpha('#000000', 0.06) }, ticks: { callback: (v) => `${v} min` } }, y: { grid: { display: false } } } });
 }
 
 async function drawProductForecast(canvas, productId) {
   const f = await api.get(`/forecast/product/${productId}`);
   const p = palette();
   chart(canvas, 'line', { labels: f.predictions.map((x) => fmt.day(x.date)), datasets: [
-    { label: 'Forecast dispatch kg', data: f.predictions.map((x) => x.predicted), borderColor: p.brand, tension: 0.3 },
-    { label: 'Upper', data: f.predictions.map((x) => x.upper), borderColor: 'transparent', backgroundColor: alpha(p.brand, 0.12), fill: '+1', pointRadius: 0 },
-    { label: 'Lower', data: f.predictions.map((x) => x.lower), borderColor: 'transparent', pointRadius: 0 },
-  ] }, { plugins: { legend: { labels: { filter: (i) => i.text.startsWith('Forecast'), color: p.muted } } }, scales: { y: { beginAtZero: false } } });
+    { label: 'Forecast demand', data: f.predictions.map((x) => x.predicted), ...lineStyle(p.series[0], { pointRadius: 3 }) },
+    { label: '80% range', data: f.predictions.map((x) => x.upper), borderWidth: 0, backgroundColor: alpha(p.series[0], 0.14), fill: '+1', pointRadius: 0 },
+    { label: 'low', data: f.predictions.map((x) => x.lower), borderWidth: 0, pointRadius: 0, fill: false },
+  ] }, { plugins: { legend: { labels: { filter: (i) => i.text !== 'low' } }, tooltip: { filter: (i) => i.dataset.label === 'Forecast demand', callbacks: { label: (c) => ` ${fmt.n(c.parsed.y)} kg dispatched` } } }, scales: { y: { beginAtZero: false, ticks: { callback: (v) => `${fmt.n(v)} kg` } } } });
   return f.model;
 }
 
@@ -111,12 +125,13 @@ export async function render(root, { user }) {
     ${canEdit ? raw('<div class="row"><button class="btn" id="dt">Log downtime</button><button class="btn primary" id="run">Record run</button></div>') : ''}</div>
     <div class="stack"><div class="grid g4">${kpi('Output · 30 d', fmt.kg(t.outputKg), `${t.runs} runs`)}${kpi('Average OEE', fmt.n(t.oee * 100, 0), 'availability × performance × quality', '%')}${kpi('Scrap cost', fmt.inr(t.scrapCost), `${fmt.kg(t.scrapKg)} rejected`)}${kpi('Produced beyond demand', fmt.kg(t.overproductionKg), `${fmt.n(o.downtimeMinutes)} min downtime`)}</div>
     ${raw(anomalyCard(a))}
-    <div class="grid g-2-1"><div class="card"><div class="card-head"><h3>Daily output, scrap & OEE</h3></div><div class="chart-box tall"><canvas id="trend"></canvas></div></div>${raw(findingsCard(o.findings))}</div>
+    <div class="grid g-2-1"><div class="card"><div class="card-head"><div><h3>Daily production</h3><p>Good output vs scrap, tonnes</p></div></div><div class="chart-box"><canvas id="trend"></canvas></div><div class="card-head" style="margin:18px 0 6px"><div><h3>Overall equipment effectiveness</h3><p>Daily average across lines · dashed line = target</p></div></div><div class="chart-box short"><canvas id="oee"></canvas></div></div>${raw(findingsCard(o.findings))}</div>
     <div class="grid g2"><div class="card"><div class="card-head"><h3>Lines · 30 days</h3></div>${raw(table([{ label: 'Line', key: 'line' }, { label: 'Yield', r: true, render: (l) => h`${fmt.pct(l.yieldPct)} <small class="muted">std ${fmt.pct(l.stdYieldPct)}</small>` }, { label: 'OEE', r: true, render: (l) => fmt.pct(l.oee * 100, 0) }, { label: 'kWh/kg', r: true, render: (l) => h`${fmt.n(l.energyPerKg, 2)} <small class="muted">std ${fmt.n(l.stdEnergyPerKg, 2)}</small>` }, { label: 'Scrap', r: true, render: (l) => fmt.kg(l.scrapKg) }], o.lines))}</div>
       <div class="card"><div class="card-head"><h3>Downtime Pareto</h3></div><div class="chart-box"><canvas id="pareto"></canvas></div></div></div>
     <div class="grid g-1-2"><div class="card"><div class="card-head"><div><h3>Product demand forecast</h3><p id="pf-meta"></p></div><select id="prod" style="width:auto">${raw(options(products))}</select></div><div class="chart-box"><canvas id="pf"></canvas></div></div>
       <div class="card"><div class="card-head"><div><h3>Recent runs</h3><p>List excess finished goods for secondary buyers</p></div></div><div id="runs"></div></div></div></div>`;
   drawTrend($('#trend', root), o.trend);
+  drawOee($('#oee', root), o.trend, o.oeeTarget);
   drawPareto($('#pareto', root), o.downtimePareto);
   drawAnomalies(root, a);
   const loadForecast = async (id) => {

@@ -72,7 +72,7 @@ async function overview(query, scope) {
     daily.set(r.run_date, d);
   }
   return {
-    totals: aggregate(withKpi), lines, findings,
+    totals: aggregate(withKpi), lines, findings, oeeTarget: cfg.oeeTarget,
     trend: [...daily.values()].sort((a, b) => a.date.localeCompare(b.date)).map((d) => ({ date: d.date, outputKg: Math.round(d.outputKg), scrapKg: Math.round(d.scrapKg), energyKwh: Math.round(d.energyKwh), oee: +(d.oeeSum / d.n).toFixed(3) })),
     downtimePareto: downtimePareto(events),
     downtimeMinutes: Math.round(events.reduce((s, e) => s + e.minutes, 0)),
