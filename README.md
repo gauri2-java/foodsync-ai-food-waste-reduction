@@ -2,6 +2,8 @@
 
 **SIH 2026 · Problem Statement SIH26234 · Ministry of Food Processing Industries**
 
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/gauri2-java/foodsync-ai-food-waste-reduction)
+
 FoodSync is an end-to-end platform for institutional kitchens and food processing units. It **predicts demand** so less food is over-cooked, **grades freshness** with images and IoT sensors, **matches surplus** with NGOs, secondary buyers or compost, **routes deliveries** before food spoils, **monitors processing lines** for losses, downtime and energy waste, and **reports impact** (CO₂e, water, land, money) in BRSR/FSSAI-ready form.
 
 Everything runs on your local PostgreSQL. All data, thresholds and factors live in the database and are editable in the UI; the analytics are implemented in the codebase and are inspectable — there are no external AI APIs.

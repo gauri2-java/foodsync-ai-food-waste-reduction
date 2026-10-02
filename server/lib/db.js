@@ -7,7 +7,19 @@ types.setTypeParser(1700, (v) => (v === null ? null : Number(v)));
 types.setTypeParser(20, (v) => (v === null ? null : Number(v)));
 types.setTypeParser(1082, (v) => v);
 
-const pool = new Pool({ connectionString: config.databaseUrl, max: 15 });
+const isCloud = config.databaseUrl && (
+  config.databaseUrl.includes('sslmode=require') ||
+  config.databaseUrl.includes('render.com') ||
+  config.databaseUrl.includes('supabase') ||
+  config.databaseUrl.includes('neon.tech') ||
+  process.env.NODE_ENV === 'production'
+);
+
+const pool = new Pool({
+  connectionString: config.databaseUrl,
+  max: 15,
+  ssl: isCloud ? { rejectUnauthorized: false } : undefined
+});
 pool.on('error', (err) => logger.error({ err }, 'Postgres pool error'));
 
 async function query(text, params = [], client = pool) {

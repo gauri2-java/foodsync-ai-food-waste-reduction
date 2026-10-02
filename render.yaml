@@ -1,0 +1,33 @@
+services:
+  - type: web
+    name: foodsync-web
+    runtime: node
+    plan: free
+    region: oregon
+    buildCommand: npm install && npm run db:setup
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: foodsync-postgres
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: LOG_LEVEL
+        value: info
+      - key: WEATHER_ENABLED
+        value: "true"
+      - key: JOBS_ENABLED
+        value: "true"
+      - key: JOB_INTERVAL_SEC
+        value: "60"
+
+databases:
+  - name: foodsync-postgres
+    databaseName: foodsync
+    user: foodsync_user
+    plan: free
+    region: oregon

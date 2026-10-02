@@ -6,25 +6,40 @@ const config = require('../config');
 const logger = require('../lib/logger');
 const defaults = require('../config/defaultSettings');
 
+function getSsl() {
+  const isCloud = config.databaseUrl && (
+    config.databaseUrl.includes('sslmode=require') ||
+    config.databaseUrl.includes('render.com') ||
+    config.databaseUrl.includes('supabase') ||
+    config.databaseUrl.includes('neon.tech') ||
+    process.env.NODE_ENV === 'production'
+  );
+  return isCloud ? { rejectUnauthorized: false } : undefined;
+}
+
 async function ensureDatabase() {
-  const url = new URL(config.databaseUrl);
-  const dbName = decodeURIComponent(url.pathname.slice(1));
-  url.pathname = '/postgres';
-  const admin = new Client({ connectionString: url.toString() });
-  await admin.connect();
   try {
-    const exists = await admin.query('SELECT 1 FROM pg_database WHERE datname = $1', [dbName]);
-    if (!exists.rowCount) {
-      await admin.query(`CREATE DATABASE "${dbName.replace(/"/g, '')}"`);
-      logger.info({ dbName }, 'database created');
+    const url = new URL(config.databaseUrl);
+    const dbName = decodeURIComponent(url.pathname.slice(1));
+    url.pathname = '/postgres';
+    const admin = new Client({ connectionString: url.toString(), ssl: getSsl() });
+    await admin.connect();
+    try {
+      const exists = await admin.query('SELECT 1 FROM pg_database WHERE datname = $1', [dbName]);
+      if (!exists.rowCount) {
+        await admin.query(`CREATE DATABASE "${dbName.replace(/"/g, '')}"`);
+        logger.info({ dbName }, 'database created');
+      }
+    } finally {
+      await admin.end();
     }
-  } finally {
-    await admin.end();
+  } catch (err) {
+    logger.warn({ err: err.message }, 'ensureDatabase skipped (managed cloud DB detected or connection already active)');
   }
 }
 
 async function applySchema() {
-  const client = new Client({ connectionString: config.databaseUrl });
+  const client = new Client({ connectionString: config.databaseUrl, ssl: getSsl() });
   await client.connect();
   try {
     await client.query(fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8'));
